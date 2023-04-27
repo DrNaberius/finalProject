@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
-import datetime as dt
+from datetime import datetime, timedelta
 
 # Set API endpoint
 url = "https://newsapi.org/v2/top-headlines"
@@ -31,7 +31,6 @@ if country_code:
     if articles:
         table = []
         locations = []
-        dates = []
         for i, article in enumerate(articles):
             row = [article["title"],
                    article["url"],
@@ -43,7 +42,6 @@ if country_code:
                 locations.append(article["author"])
             else:
                 locations.append(article["source"]["name"])
-            dates.append(pd.to_datetime(article["publishedAt"]).date())
 
         st.table(pd.DataFrame(table, columns=["Headline", "Link", "Author", "Date Posted"]).style.set_properties(
             **{'width': '100%'}))
@@ -56,26 +54,31 @@ if country_code:
             df['country'] = location.address
             df['latitude'] = location.latitude
             df['longitude'] = location.longitude
-            fig = px.scatter_mapbox(df, lat='latitude', lon='longitude', zoom=3, height=400, width=600)
+            fig = px.scatter_mapbox(df, lat='latitude', lon='longitude', zoom=3, height=600, width=800)
             fig.update_layout(mapbox_style="carto-positron", mapbox_domain={"x": [0, 1], "y": [0, 1]})
             st.plotly_chart(fig)
-
-            # Create a pandas DataFrame with article dates
-            df = pd.DataFrame(articles)
-            df['publishedAt'] = pd.to_datetime(df['publishedAt'])
-            df['date'] = df['publishedAt'].dt.date
-            df = df.groupby('date').count().reset_index()
-
-            # Filter the data to only show the last 7 days
-            last_7_days = pd.date_range(end=pd.Timestamp.today(), periods=7, freq='D').date
-            df = df[df['date'].isin(last_7_days)]
-
-            # Create a line chart using Plotly Express
-            fig = px.line(df, x='date', y='title', title="Number of articles per day")
-            st.plotly_chart(fig)
-
         else:
             st.write("Could not find coordinates for the selected country.")
+
+        # Create a pandas DataFrame with article dates
+        df = pd.DataFrame(articles)
+        df['publishedAt'] = pd.to_datetime(df['publishedAt'])
+        df['date'] = df['publishedAt'].dt.date
+
+        # Filter the data to only show the last 7 days
+        last_7_days = [(datetime.now() - timedelta(days=i)).date() for i in range(7)]
+        df = df[df['date'].isin(last_7_days)]
+
+        # Count the number of articles per day
+        df = df.groupby('date').count().reset_index()
+
+        # Create a bar chart using Plotly Express
+        if not df.empty:
+            fig = px.bar(df, x='date', y='title', labels={'date': 'Date', 'title': 'Number of articles'})
+            fig.update_layout(xaxis_range=[last_7_days[-1], last_7_days[0]])
+            st.plotly_chart(fig)
+        else:
+            st.write("No articles found in the last 7 days for the selected country.")
 
     else:
         st.write("No articles found for the selected country.")
