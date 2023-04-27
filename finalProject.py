@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Newsdata API endpoint
-url = "https://api.newsdata.io/v1/news"
+url = "https://newsapi.org/v2/top-headlines"
 
 # Newsdata API key
 api_key = "9eebec314c544f61b0aef624863db955"
