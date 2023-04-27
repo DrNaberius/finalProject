@@ -1,5 +1,7 @@
 import streamlit as st
 import requests
+import pandas as pd
+import plotly.express as px
 
 # Set API endpoint
 url = "https://newsapi.org/v2/top-headlines"
@@ -36,6 +38,14 @@ if country_code:
             ]
             table.append(row)
         st.table(table)
+
+        df = pd.DataFrame(articles)
+        df['publishedAt'] = pd.to_datetime(df['publishedAt'])
+        df['week'] = df['publishedAt'].dt.strftime('%Y-%U')
+        df = df.groupby('week').count().reset_index()
+        fig = px.line(df, x='week', y='title')
+        st.plotly_chart(fig)
+
     else:
         st.write("No articles found for the selected country.")
 else:
