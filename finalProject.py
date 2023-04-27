@@ -39,10 +39,19 @@ if country_code:
             table.append(row)
         st.table(table)
 
+        # Create a pandas DataFrame with article dates
         df = pd.DataFrame(articles)
         df['publishedAt'] = pd.to_datetime(df['publishedAt'])
         df['week'] = df['publishedAt'].dt.strftime('%Y-%U')
+
+        # Filter the data to only show the last 10 weeks
+        last_10_weeks = df['week'].unique()[-10:]
+        df = df[df['week'].isin(last_10_weeks)]
+
+        # Count the number of articles per week
         df = df.groupby('week').count().reset_index()
+
+        # Create a line chart using Plotly Express
         fig = px.line(df, x='week', y='title')
         st.plotly_chart(fig)
 
