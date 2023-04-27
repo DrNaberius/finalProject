@@ -1,32 +1,89 @@
-import streamlit as st
-import pandas as pd
 import requests
+import pandas as pd
+import numpy as np
+import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
 
-# Set up the API endpoint and parameters
+# Newsdata API endpoint
 url = "https://api.newsdata.io/v1/news"
-params = {
-    "apikey": "pub_20640989cdbc220e019539b45ae6f2ff6ec8f",
-    "language": "en",
-    "sort_by": "relevancy"
-}
 
-# Define a function to get news data for a given location
+# Newsdata API key
+api_key = "9eebec314c544f61b0aef624863db955"
+
+# Define a function to fetch news data for a given location
 def get_news_data(location):
-    params["q"] = location
+    # Define query parameters
+    params = {
+        "apikey": api_key,
+        "language": "en",
+        "sort_by": "relevancy",
+        "q": location
+    }
+
+    # Send a GET request to the Newsdata API
     response = requests.get(url, params=params)
-    data = response.json()
-    return pd.json_normalize(data["data"])
+
+    # Convert the response to a Pandas dataframe
+    news_df = pd.DataFrame(response.json()["articles"])
+
+    # Return the news dataframe
+    return news_df
 
 # Define the Streamlit app
 def app():
-    st.title("Global News")
-    st.write("Enter a location to see the latest news:")
-    location = st.text_input("Location", "United States")
+    # Set the title of the app
+    st.title("Global News Explorer")
 
-    if st.button("Get News"):
-        news_df = get_news_data(location)
-        st.write(news_df)
+    # Ask the user for a location
+    location = st.text_input("Enter a location:")
 
-# Run the app
+    # Fetch the news data for the specified location
+    news_df = get_news_data(location)
+
+    # Display the news articles
+    st.subheader("News Articles")
+    st.dataframe(news_df)
+
+    # Create a map showing the location of the news articles
+    st.subheader("Map of News Coverage")
+    if not news_df.empty:
+        # Group the news articles by country and count the number of articles
+        country_counts = news_df.groupby("country").size().reset_index(name="count")
+
+        # Create a choropleth map of the news coverage
+        fig = px.choropleth(
+            country_counts,
+            locations="country",
+            color="count",
+            color_continuous_scale=px.colors.sequential.Plasma,
+            projection="natural earth",
+        )
+        st.plotly_chart(fig)
+
+    # Create a plot showing the amount of news coverage per day
+    st.subheader("News Coverage Over Time")
+    if not news_df.empty:
+        # Convert the publishedAt column to a datetime object
+        news_df["publishedAt"] = pd.to_datetime(news_df["publishedAt"])
+
+        # Group the news articles by date and count the number of articles
+        daily_counts = news_df.groupby(pd.Grouper(key="publishedAt", freq="D")).size().reset_index(name="count")
+
+        # Create a line plot of the daily news coverage
+        fig = go.Figure(
+            go.Scatter(
+                x=daily_counts["publishedAt"],
+                y=daily_counts["count"],
+                mode="lines+markers",
+            )
+        )
+        fig.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Number of Articles",
+        )
+        st.plotly_chart(fig)
+
+# Run the Streamlit app
 if __name__ == "__main__":
     app()
